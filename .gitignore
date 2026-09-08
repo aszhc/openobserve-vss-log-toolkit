@@ -1,0 +1,6 @@
+.DS_Store
+.mcp.json
+node_modules/
+traces/
+*.trace
+*.log

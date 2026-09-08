@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "openobserve": {
+      "type": "http",
+      "url": "${OPENOBSERVE_MCP_URL}",
+      "headers": {
+        "Authorization": "Basic ${OPENOBSERVE_AUTH}"
+      }
+    }
+  }
+}

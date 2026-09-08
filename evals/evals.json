@@ -1,0 +1,154 @@
+{
+  "skill_name": "openobserve-vss-log-toolkit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "查询昨天单用户业务签约同步失败的业务 appid，并统计每个 appid 的失败次数。",
+      "expected_output": "使用 vss_log 和签约 labels_code，在明确的昨天时间范围内进行只读 SearchSQL 查询；从 protocol_request_body 提取 appid，按 appid 统计失败次数，并说明字段或解析异常。",
+      "files": [],
+      "expectations": [
+        "查询过滤包含 labels_code = '单用户业务签约同步'。",
+        "查询使用非零的开始和结束微秒时间戳，并且时间范围仅覆盖昨天。",
+        "查询是只读 SearchSQL；若失败字段未确认，先用 StreamSchema 或限定样例确认。",
+        "从 protocol_request_body 的对象或 JSON 字符串形式提取 appid，不猜测路径。",
+        "保留 trackid；需要链路分析时按 trackid 分组并按时间排序。",
+        "结果按实际提取到的 appid 统计失败次数，并报告无法解析的记录。",
+        "不调用写入、修改或删除工具，也不展示认证信息。"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "查询最近两小时的单用户业务退订信息同步日志，列出最近一次发生时间。",
+      "expected_output": "使用 vss_log 和退订 labels_code 查询最近两小时日志；解析 protocol_request_body 中的 appid，并按 appid 列出最近发生时间，同时报告无结果或解析异常。",
+      "files": [],
+      "expectations": [
+        "查询过滤包含 labels_code = '单用户业务退订信息同步'。",
+        "查询时间范围是当前时刻之前两小时，且使用非零微秒时间戳。",
+        "查询是有边界的只读查询，不扫描全部历史。",
+        "从 protocol_request_body 的对象或 JSON 字符串形式提取 appid，不猜测路径。",
+        "保留 trackid；需要链路分析时按 trackid 分组并按时间排序。",
+        "结果列出每个已解析 appid 的最近发生时间，并说明缺失或非法 JSON。",
+        "不调用写入、修改或删除工具，也不展示认证信息。"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "对比今天签约和退订日志中的业务 appid，找出只签约未退订的 appid。",
+      "expected_output": "在今天的同一时间范围内分别查询签约和退订事件，解析 protocol_request_body 中的 appid，计算签约 appid 集合减去退订 appid 集合，并明确说明不可解析记录。",
+      "files": [],
+      "expectations": [
+        "同时使用签约和退订两个精确 labels_code，或使用等价的 labels_code IN 过滤。",
+        "两类事件使用相同且非零的今天起止微秒时间戳。",
+        "查询和比较过程全部只读，不调用管理或删除工具。",
+        "从 protocol_request_body 的对象或 JSON 字符串形式提取 appid，不猜测路径。",
+        "保留 trackid；需要链路分析时按 trackid 分组并按时间排序。",
+        "结果计算签约 appid 减去退订 appid，并不把无法解析的记录当作确定成员。",
+        "报告无结果、请求体缺失、JSON 解析失败或多个 appid 候选等异常。"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "查询号码 13800138000 什么时候签约了什么业务，以及签约是否成功。",
+      "expected_output": "确认 protocol_request_uri、时间字段和成功判断字段；在 vss_log 中用号码过滤签约事件，保留 trackid 串联同一请求链路，从 protocol_request_body 提取 appid，按链路输出签约时间、业务和最终状态；当前项目允许完整显示号码。",
+      "files": [],
+      "expectations": [
+        "先使用 StreamSchema 或限定样例确认 protocol_request_uri、时间字段和成功判断字段，而不是猜测字段名或 URI 参数名。",
+        "查询过滤包含 labels_code = '单用户业务签约同步'，并使用明确的非零微秒时间范围。",
+        "确认 URI 模板后优先使用 protocol_request_uri 的完整 URI 精确匹配；只有模板未知时才使用 LIKE 子串匹配。",
+        "返回并保留 trackid，按 trackid 分组和时间顺序串联请求链路。",
+        "从 protocol_request_body 提取 appid/appId/appIds（包括数组形式），并在无法解析时明确标记。",
+        "只有在状态、结果或错误字段语义已确认时才判定签约成功，否则标记为状态未确认。",
+        "当前项目允许按用户偏好完整显示号码；不调用写入、修改或删除工具，也不展示认证信息。"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "查询最近一天 DC 业务的签约和退订数量，并列出无法识别的 op。",
+      "expected_output": "在 vss_log 中用 labels_code='单用户新通话功能开通同步' 查询有界时间范围，解析 protocol_request_body 的 op：ADD 统计为签约DC，DELETE 统计为退订DC，缺失或其他值单独列出。",
+      "files": [],
+      "expectations": [
+        "查询过滤包含 labels_code = '单用户新通话功能开通同步'。",
+        "查询使用最近一天的明确非零微秒时间范围和分页，并保持只读。",
+        "返回并解析 protocol_request_body，兼容 JSON 对象和 JSON 字符串。",
+        "将 op=ADD 分类为签约DC，将 op=DELETE 分类为退订DC。",
+        "缺失、非法 JSON、缺失 op 或其他 op 值单独标记为 DC动作未确认。",
+        "不把 DC 动作仅凭 labels_code 或日志文本猜测，也不调用写入、修改或删除工具。"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "分析最近一小时通话开始、接通、释放情况，并按通话链路统计接通时延和释放原因。",
+      "expected_output": "查询呼叫事件的有界日志，解析 protocol_request_body.callEvent，按已验证的 trackid/callIdentifier 关联并按事件时间排序，统计 BEGIN、ANSWER、RELEASE、接通时延和释放原因；当前项目允许完整显示号码，但不输出 IMEI、内网地址和 callUrl。",
+      "files": [],
+      "expectations": [
+        "查询过滤包含 labels_code = '呼叫事件通知接口'，使用明确的非零微秒时间范围和分页。",
+        "选择并解析 protocol_request_body.callEvent，而不是只依赖固定 protocol_request_uri。",
+        "识别 BEGIN、RINGING、ANSWER、MEDIA_UPDATE_REQUEST、RELEASE 等事件并按时间排序。",
+        "验证 trackid 与 callIdentifier 的关联后再按通话链路分组。",
+        "只有同时存在 BEGIN 和 ANSWER 时才计算接通时延；BEGIN 不直接等于接通成功。",
+        "从 reason.text 汇总释放原因，并报告不完整链路。",
+        "按当前项目偏好完整显示 calling/called/redirecting；IMEI、内网地址和 callUrl 不输出，不调用写入、修改或删除工具。"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "根据 trackid 查询完整通话日志，并结合 call_bill 给出通话时长、方向、通话双方和呼叫结果。",
+      "expected_output": "先在明确时间范围内查询 vss_log 的呼叫事件并按 trackid 还原 BEGIN/ANSWER/RELEASE 链路，再用 call_bill.callidentifier=trackid 精确查话单，解析 duration、time、方向、双方和 details 操作结果，区分观察时长与话单时长并报告未匹配话单。",
+      "files": [],
+      "expectations": [
+        "先查询 vss_log 且过滤 labels_code = '呼叫事件通知接口'，保留 trackid 和 protocol_request_body.callEvent。",
+        "使用明确的非零微秒时间窗口和分页，不扫描全部历史。",
+        "使用 call_bill.callidentifier = vss_log.trackid 精确等值关联，并保留相同或略微扩展的时间范围；不使用 LIKE 扫描 call_bill。",
+        "选择并解析 call_bill 的 duration、time、direction、calling、called、bearercapability、areacode 和 details。",
+        "将 call_bill.duration 标为话单摘要时长，将 vss BEGIN→RELEASE 标为观察到的协议时长，不能混为一谈。",
+        "解析 details JSON 数组中的事件、protocolCode、cause、result 和时间，报告明细缺失、解析失败或不完整。",
+        "检查 vss 链路中的 DC_CONTROL/CREATE 控制操作，并以 operationResult 或 dcStatus 判断 DC 业务是否成功；没有 appid 时不得臆造业务名称。",
+        "按当前项目偏好完整显示 callidentifier、calling 和 called；sender/receiver 等内部标识谨慎处理，不调用写入、修改或删除工具，也不展示认证信息。"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "查询最近一天签约日志中的 appid，并显示对应的业务名称。",
+      "expected_output": "在 vss_log 的签约事件时间范围内查询并解析 protocol_request_body，从内置 appid 目录映射业务名称；保留前导零，未收录或无法解析的值单独标记。",
+      "files": [],
+      "expectations": [
+        "查询过滤包含 labels_code = '单用户业务签约同步'，且时间范围明确、非零并有分页。",
+        "从 protocol_request_body 的 JSON 对象或 JSON 字符串中提取 appid/appId/appIds。",
+        "把 appid 当作字符串处理并保留前导零，不将其转成数值。",
+        "使用 references/appid-catalog.md 将已知 appid 映射为 business_name，并同时输出两列。",
+        "未收录 appid 标记为未知业务（目录未收录），不按前缀或相似名称猜测。",
+        "不调用写入、修改或删除工具，也不展示认证信息。"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "帮我查一下 15168778422 最近三小时的通话情况，先给我一个话单概况，再展开日志。",
+      "expected_output": "先在 call_bill 中按 calling/called 和最近三小时查询话单摘要，再用返回的 callidentifier 精确回查 vss_log 的完整 trackid 链路；输出话单时长、方向、双方、事件时间线和异常。",
+      "files": [],
+      "expectations": [
+        "第一步查询 call_bill，而不是先对 vss_log.protocol_request_body 做全量号码文本扫描。",
+        "call_bill 查询按 calling 或 called 精确匹配号码，使用明确的非零微秒时间范围和分页。",
+        "从 call_bill 结果取得 callidentifier，并用其作为 vss_log.trackid 精确关联键。",
+        "同时报告 call_bill.duration 话单时长与 vss BEGIN/ANSWER/RELEASE 事件链，不混淆两者语义。",
+        "对用户明确要求的号码可完整显示；认证 token、IMEI、内网地址和 callUrl 不输出。",
+        "无话单或无 vss 链路时分别说明，不把缺失记录推断为呼叫失败。"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "根据 trackid 获取完整通话日志，把 vss_log 中所有 raw_message 按时间顺序导出成 trace 文件，文件名用 MO_8615967308074_20260604201913.trace 这种格式。",
+      "expected_output": "在明确的通话时间窗口内按 trackid 分页查询 vss_log 的 _timestamp/raw_message，取全并升序排序，逐条换行写入 UTF-8 trace 文件；方向、号码和开始时间来自已确认元数据，并返回绝对路径和写入数量。",
+      "files": [],
+      "expectations": [
+        "查询只选择 vss_log 的 _timestamp 和 raw_message，并使用精确 trackid 条件；不添加 labels_code 过滤。",
+        "查询使用明确、非零的时间范围，detail=full，并通过 query.from/query.size 分页直到取全。",
+        "合并结果后按 _timestamp 升序排列，将每个非 null raw_message 写入且每条末尾有换行。",
+        "文件名遵循 <DIRECTION>_<PHONE>_<CALL_START_YYYYMMDDHHMMSS>.trace，BEGIN 时间按 Asia/Shanghai 格式化。",
+        "优先使用用户目标号码；否则 MO 用 calling、MT 用 called，保留 86 国家码。",
+        "使用 scripts/build-trace.mjs 创建本地文件，默认不覆盖已有同名文件。",
+        "返回文件绝对路径、查询行数、写入数和跳过 null 数；没有 raw_message 时不创建空文件。",
+        "原始日志中的认证凭据值必须脱敏，不修改 OpenObserve 远端数据。"
+      ]
+    }
+  ]
+}
